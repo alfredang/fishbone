@@ -820,11 +820,7 @@ input.category-name:focus {
     <!-- Causes for selected category -->
     <div class="sidebar-section">
       <h3 id="causesTitle">Causes</h3>
-      <div class="causes-panel" id="causesPanel">
-        <div class="causes-panel-empty" id="causesEmpty">
-          Select a category to add causes
-        </div>
-      </div>
+      <div class="causes-panel" id="causesPanel"></div>
       <div class="add-cause-wrap" id="addCauseWrap" style="display:none;">
         <input type="text" id="newCauseInput" placeholder="Add a cause…" aria-label="New cause"
           onkeydown="if(event.key==='Enter')addCause()">
@@ -1084,37 +1080,37 @@ function deleteCategory(id) {
 // ===== CAUSES =====
 function renderCauses() {
   const panel = document.getElementById('causesPanel');
-  const empty = document.getElementById('causesEmpty');
   const wrap = document.getElementById('addCauseWrap');
   const title = document.getElementById('causesTitle');
   const cat = getSelectedCategory();
 
+  panel.innerHTML = '';
+
   if (!cat) {
-    panel.innerHTML = '';
+    const empty = document.createElement('div');
+    empty.className = 'causes-panel-empty';
+    empty.textContent = 'Select a category to add causes';
     panel.appendChild(empty);
-    empty.style.display = 'block';
     wrap.style.display = 'none';
     title.textContent = 'Causes';
     return;
   }
 
-  empty.style.display = 'none';
   wrap.style.display = 'flex';
   title.textContent = `Causes — ${cat.name}`;
-  panel.innerHTML = '';
-
-  cat.causes.forEach((cause, idx) => {
-    const card = document.createElement('div');
-    card.className = 'cause-card';
-    card.innerHTML = buildCauseHTML(cause, cat.id);
-    panel.appendChild(card);
-  });
 
   if (cat.causes.length === 0) {
     const hint = document.createElement('div');
     hint.className = 'causes-panel-empty';
     hint.textContent = 'No causes yet. Add one below!';
     panel.appendChild(hint);
+  } else {
+    cat.causes.forEach((cause) => {
+      const card = document.createElement('div');
+      card.className = 'cause-card';
+      card.innerHTML = buildCauseHTML(cause, cat.id);
+      panel.appendChild(card);
+    });
   }
 }
 
