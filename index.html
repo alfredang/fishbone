@@ -1305,8 +1305,19 @@ function renderDiagram() {
   const height = Math.max(600, 280 + maxCausesWithSubs * 55);
 
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-  svg.setAttribute('width', width * zoomLevel);
-  svg.setAttribute('height', height * zoomLevel);
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  if (zoomLevel === 1) {
+    // Auto-fit: fill the container width, scale proportionally
+    svg.setAttribute('width', '100%');
+    svg.removeAttribute('height');
+    svg.style.height = 'auto';
+    svg.style.minHeight = '100%';
+  } else {
+    // Manual zoom: use fixed dimensions
+    svg.setAttribute('width', width * zoomLevel);
+    svg.setAttribute('height', height * zoomLevel);
+    svg.style.minHeight = '';
+  }
 
   const cx = height / 2; // vertical center
   const spineLeft = 100;
@@ -1446,9 +1457,9 @@ function selectCategoryAndCause(catId) {
 }
 
 // ===== ZOOM =====
-function zoomIn() { zoomLevel = Math.min(zoomLevel + 0.15, 3); renderDiagram(); }
+function zoomIn() { zoomLevel = Math.min(zoomLevel + 0.15, 3); if (zoomLevel > 1.01) { renderDiagram(); } else { zoomLevel = 1.15; renderDiagram(); } }
 function zoomOut() { zoomLevel = Math.max(zoomLevel - 0.15, 0.3); renderDiagram(); }
-function zoomReset() { zoomLevel = 1; renderDiagram(); }
+function zoomReset() { zoomLevel = 1; renderDiagram(); document.getElementById('diagramContainer').scrollTo(0, 0); }
 
 // ===== EXPORT / IMPORT =====
 function exportPNG() {
