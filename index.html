@@ -436,17 +436,25 @@ input.category-name:focus {
 }
 .sub-cause-item:hover .sub-cause-delete { opacity: 1; }
 .sub-cause-delete:hover { color: var(--danger); }
-.add-sub-cause {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  cursor: pointer;
-  background: none;
-  border: none;
-  font-family: var(--font);
-  padding: 0.15rem 0;
-  margin-top: 0.15rem;
+.add-sub-cause-wrap {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+  margin-left: 1rem;
+  align-items: center;
 }
-.add-sub-cause:hover { color: var(--accent); }
+.sub-cause-input {
+  flex: 1;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px dashed var(--border);
+  background: transparent;
+}
+.sub-cause-input:focus {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--surface);
+}
 
 /* Add cause input */
 .add-cause-wrap {
@@ -1149,7 +1157,12 @@ function buildCauseHTML(cause, catId) {
       <span class="badge badge-needs-evidence" onclick="setPriority('${catId}','${cause.id}','needs-evidence')" role="button" tabindex="0">Needs Evidence</span>
     </div>
     ${subHTML}
-    <button class="add-sub-cause" onclick="addSubCause('${catId}','${cause.id}')">+ Add sub-cause</button>
+    <div class="add-sub-cause-wrap">
+      <input type="text" class="sub-cause-input" placeholder="Add sub-cause…"
+        aria-label="Add sub-cause to ${escHTML(cause.text)}"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();addSubCauseFromInput('${catId}','${cause.id}',this);}">
+      <button class="btn btn-sm" onclick="addSubCauseFromInput('${catId}','${cause.id}',this.previousElementSibling)" style="padding:0.2rem 0.5rem;font-size:0.72rem;">+</button>
+    </div>
     <button class="cause-notes-toggle" onclick="toggleNotes(this, '${catId}','${cause.id}')">
       ${cause.notes ? '📝 Edit notes' : '📝 Add notes'}
     </button>
@@ -1244,6 +1257,21 @@ function addSubCause(catId, causeId) {
   if (cause) {
     if (!cause.subCauses) cause.subCauses = [];
     cause.subCauses.push({ id: uid(), text: 'Sub-cause' });
+    saveState();
+    render();
+  }
+}
+
+function addSubCauseFromInput(catId, causeId, inputEl) {
+  const text = inputEl.value.trim();
+  if (!text) return;
+  pushUndo();
+  const cat = state.categories.find(c => c.id === catId);
+  const cause = cat?.causes.find(c => c.id === causeId);
+  if (cause) {
+    if (!cause.subCauses) cause.subCauses = [];
+    cause.subCauses.push({ id: uid(), text });
+    inputEl.value = '';
     saveState();
     render();
   }
