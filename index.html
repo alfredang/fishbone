@@ -708,9 +708,25 @@ input.category-name:focus {
   fill: var(--bone-head);
 }
 
+/* ===== FOOTER ===== */
+.app-footer {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 0.5rem 1.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.app-footer a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+.app-footer a:hover { text-decoration: underline; }
+
 /* ===== PRINT ===== */
 @media print {
-  .app-header, .sidebar, .diagram-toolbar, .info-panel { display: none !important; }
+  .app-header, .sidebar, .diagram-toolbar, .info-panel, .app-footer { display: none !important; }
   .app-layout { display: block; height: auto; }
   .main-area { overflow: visible; }
   .diagram-container { overflow: visible; }
@@ -852,6 +868,11 @@ input.category-name:focus {
     </div>
   </div>
 </div>
+
+<!-- ===== FOOTER ===== -->
+<footer class="app-footer">
+  Powered by <a href="https://www.tertiarycourses.com.sg/" target="_blank" rel="noopener noreferrer">Tertiary Infotech Academy Pte Ltd</a>
+</footer>
 
 <!-- ===== MODAL ===== -->
 <div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
