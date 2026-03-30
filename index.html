@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fishbone Diagram — Root Cause Analysis Tool</title>
+<style>
+/* ===== CSS RESET & VARIABLES ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f5f6fa;
+  --surface: #ffffff;
+  --surface-alt: #f0f1f5;
+  --border: #e0e2e9;
+  --text: #1a1d27;
+  --text-secondary: #5a5f72;
+  --text-muted: #8b90a0;
+  --accent: #4361ee;
+  --accent-hover: #3651d4;
+  --accent-light: #eef0fd;
+  --danger: #e74c3c;
+  --danger-light: #fdecea;
+  --warning: #f59e0b;
+  --warning-light: #fef3c7;
+  --success: #10b981;
+  --success-light: #d1fae5;
+  --likely: #e74c3c;
+  --possible: #f59e0b;
+  --needs-evidence: #6366f1;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 10px 30px rgba(0,0,0,0.1);
+  --transition: 0.2s ease;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  /* Fishbone colors */
+  --bone-color: #64748b;
+  --bone-head: #4361ee;
+  --cat-people: #e74c3c;
+  --cat-process: #3498db;
+  --cat-policy: #9b59b6;
+  --cat-technology: #1abc9c;
+  --cat-environment: #f39c12;
+  --cat-materials: #e67e22;
+}
+
+[data-theme="dark"] {
+  --bg: #0f1117;
+  --surface: #1a1d2e;
+  --surface-alt: #232640;
+  --border: #2d3154;
+  --text: #e8eaf0;
+  --text-secondary: #a0a5b8;
+  --text-muted: #6b7089;
+  --accent: #6381ff;
+  --accent-hover: #7b95ff;
+  --accent-light: #1e2344;
+  --danger-light: #2d1518;
+  --warning-light: #2d2510;
+  --success-light: #0d2d1f;
+  --shadow: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg: 0 10px 30px rgba(0,0,0,0.5);
+  --bone-color: #94a3b8;
+}
+
+html { font-size: 15px; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ===== LAYOUT ===== */
+.app-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0.6rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow);
+}
+.app-header h1 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.app-header h1 .fish-icon { font-size: 1.4rem; }
+.header-actions { display: flex; gap: 0.5rem; align-items: center; }
+
+.app-layout {
+  display: flex;
+  height: calc(100vh - 48px);
+}
+
+.sidebar {
+  width: 340px;
+  min-width: 280px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.sidebar-section {
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-section h3 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+  font-weight: 600;
+}
+
+.main-area {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== BUTTONS ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+  font-weight: 500;
+}
+.btn:hover { background: var(--surface-alt); box-shadow: var(--shadow); }
+.btn:active { transform: scale(0.97); }
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-danger { color: var(--danger); border-color: var(--danger); }
+.btn-danger:hover { background: var(--danger-light); }
+.btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+.btn-icon {
+  padding: 0.4rem;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+}
+.btn-ghost { border-color: transparent; background: transparent; }
+.btn-ghost:hover { background: var(--surface-alt); }
+
+/* ===== INPUTS ===== */
+input[type="text"], textarea, select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.88rem;
+  transition: border-color var(--transition);
+}
+input[type="text"]:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+textarea { resize: vertical; min-height: 60px; }
+label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.3rem;
+}
+
+/* ===== PROBLEM INPUT ===== */
+.problem-input-wrap {
+  position: relative;
+}
+.problem-input-wrap input {
+  font-size: 1rem;
+  padding: 0.7rem 1rem;
+  font-weight: 600;
+  border: 2px solid var(--border);
+}
+.problem-input-wrap input:focus {
+  border-color: var(--accent);
+}
+
+/* ===== CATEGORY LIST ===== */
+.category-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.category-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  cursor: pointer;
+  transition: all var(--transition);
+  border: 1px solid transparent;
+}
+.category-item:hover { border-color: var(--border); }
+.category-item.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+.category-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.category-name {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text);
+  font-family: var(--font);
+  cursor: pointer;
+  padding: 0.1rem 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+input.category-name {
+  border: none;
+  background: transparent;
+}
+input.category-name:focus {
+  outline: none;
+  background: var(--surface);
+  cursor: text;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+}
+.category-count {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: var(--surface);
+  padding: 0.1rem 0.4rem;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+}
+.category-delete {
+  opacity: 0;
+  transition: opacity var(--transition);
+  color: var(--text-muted);
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  line-height: 1;
+}
+.category-item:hover .category-delete { opacity: 1; }
+.category-delete:hover { color: var(--danger); }
+
+/* ===== CAUSES PANEL ===== */
+.causes-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.8rem 1.2rem;
+}
+.causes-panel-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+.cause-card {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.7rem;
+  margin-bottom: 0.5rem;
+  transition: all var(--transition);
+}
+.cause-card:hover { box-shadow: var(--shadow); }
+.cause-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+.cause-text {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.88rem;
+  font-weight: 500;
+  padding: 0.15rem 0;
+  width: 100%;
+}
+.cause-text:focus {
+  outline: none;
+  background: var(--surface);
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+}
+.cause-actions {
+  display: flex;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+.cause-actions button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 0.15rem 0.3rem;
+  border-radius: 3px;
+  transition: all var(--transition);
+}
+.cause-actions button:hover { background: var(--surface); color: var(--text); }
+
+/* Priority badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all var(--transition);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.badge-possible { background: var(--warning-light); color: #b45309; }
+.badge-likely { background: var(--danger-light); color: var(--danger); }
+.badge-needs-evidence { background: var(--accent-light); color: var(--needs-evidence); }
+[data-theme="dark"] .badge-possible { color: var(--warning); }
+[data-theme="dark"] .badge-likely { color: #f87171; }
+[data-theme="dark"] .badge-needs-evidence { color: #a5b4fc; }
+
+.badge-selector {
+  display: none;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  flex-wrap: wrap;
+}
+.badge-selector.open {
+  display: flex;
+}
+
+/* Notes toggle */
+.cause-notes-toggle {
+  font-size: 0.75rem;
+  color: var(--accent);
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: var(--font);
+  padding: 0;
+  margin-top: 0.3rem;
+}
+.cause-notes-toggle:hover { text-decoration: underline; }
+.cause-notes {
+  margin-top: 0.4rem;
+}
+.cause-notes textarea {
+  font-size: 0.8rem;
+  min-height: 50px;
+  background: var(--surface);
+}
+
+/* Sub-causes */
+.sub-causes {
+  margin-top: 0.4rem;
+  margin-left: 1rem;
+  padding-left: 0.6rem;
+  border-left: 2px solid var(--border);
+}
+.sub-cause-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.25rem;
+}
+.sub-cause-text {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 0.8rem;
+  padding: 0.1rem 0;
+}
+.sub-cause-text:focus {
+  outline: none;
+  background: var(--surface);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  color: var(--text);
+}
+.sub-cause-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.sub-cause-item:hover .sub-cause-delete { opacity: 1; }
+.sub-cause-delete:hover { color: var(--danger); }
+.add-sub-cause {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: var(--font);
+  padding: 0.15rem 0;
+  margin-top: 0.15rem;
+}
+.add-sub-cause:hover { color: var(--accent); }
+
+/* Add cause input */
+.add-cause-wrap {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.6rem 0;
+}
+.add-cause-wrap input { font-size: 0.85rem; }
+
+/* ===== DIAGRAM AREA ===== */
+.diagram-container {
+  flex: 1;
+  position: relative;
+  overflow: auto;
+  background: var(--bg);
+}
+.diagram-container svg {
+  display: block;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+/* Diagram toolbar */
+.diagram-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.diagram-toolbar .spacer { flex: 1; }
+
+/* ===== LEARNING PANEL ===== */
+.learning-prompts { display: flex; flex-direction: column; gap: 0.4rem; }
+.learning-prompt {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding: 0.45rem 0.65rem;
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--accent);
+  line-height: 1.4;
+  cursor: default;
+  transition: all var(--transition);
+}
+.learning-prompt:hover {
+  background: var(--accent-light);
+  color: var(--text);
+}
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.modal-overlay.open { opacity: 1; pointer-events: auto; }
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  width: 90%;
+  max-width: 620px;
+  max-height: 85vh;
+  overflow-y: auto;
+  transform: translateY(20px);
+  transition: transform 0.25s ease;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h2 { font-size: 1.05rem; font-weight: 700; }
+.modal-body { padding: 1.2rem; }
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.8rem 1.2rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ===== INFO PANEL (Instructions) ===== */
+.info-panel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.info-panel.open { max-height: 700px; }
+.info-content {
+  padding: 1.2rem 1.5rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+.info-col h3 {
+  font-size: 0.95rem;
+  margin-bottom: 0.6rem;
+  color: var(--accent);
+}
+.info-col p, .info-col li {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.info-col ul { padding-left: 1.2rem; }
+.info-col li { margin-bottom: 0.3rem; }
+.info-steps {
+  counter-reset: step;
+  list-style: none;
+  padding: 0;
+}
+.info-steps li {
+  counter-increment: step;
+  padding-left: 1.8rem;
+  position: relative;
+  margin-bottom: 0.5rem;
+}
+.info-steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0.1rem;
+  width: 1.3rem;
+  height: 1.3rem;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== TOAST ===== */
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.toast {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.7rem 1rem;
+  box-shadow: var(--shadow-md);
+  font-size: 0.85rem;
+  animation: slideIn 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* ===== ONBOARDING TOOLTIP ===== */
+.onboarding-tip {
+  position: fixed;
+  z-index: 150;
+  background: var(--accent);
+  color: #fff;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  font-size: 0.82rem;
+  max-width: 280px;
+  line-height: 1.4;
+  animation: fadeUp 0.3s ease;
+}
+.onboarding-tip::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  transform: rotate(45deg);
+}
+.onboarding-tip.arrow-top::after { top: -5px; left: 20px; }
+.onboarding-tip.arrow-left::after { left: -5px; top: 20px; }
+.onboarding-tip .tip-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+.onboarding-tip .btn { color: #fff; border-color: rgba(255,255,255,0.4); font-size: 0.75rem; }
+.onboarding-tip .btn:hover { background: rgba(255,255,255,0.15); }
+@keyframes fadeUp {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* ===== SVG STYLES ===== */
+.fish-spine { stroke: var(--bone-color); stroke-width: 3; fill: none; }
+.fish-bone { stroke: var(--bone-color); stroke-width: 2; fill: none; }
+.fish-sub-bone { stroke: var(--bone-color); stroke-width: 1.2; fill: none; opacity: 0.7; }
+.fish-head-shape { fill: var(--bone-head); opacity: 0.12; }
+.fish-head-outline { stroke: var(--bone-head); stroke-width: 2.5; fill: none; }
+.fish-tail-shape { fill: var(--bone-color); opacity: 0.08; }
+
+.cat-label {
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--text);
+  cursor: pointer;
+}
+.cat-label:hover { fill: var(--accent); }
+.cause-label {
+  font-family: var(--font);
+  font-size: 11px;
+  fill: var(--text-secondary);
+  cursor: pointer;
+}
+.cause-label:hover { fill: var(--accent); }
+.cause-label.priority-likely { fill: var(--likely); font-weight: 700; }
+.cause-label.priority-needs-evidence { fill: var(--needs-evidence); font-style: italic; }
+.sub-cause-label {
+  font-family: var(--font);
+  font-size: 9.5px;
+  fill: var(--text-muted);
+}
+.cause-dot {
+  fill: var(--bone-color);
+  cursor: pointer;
+  transition: r 0.15s ease;
+}
+.cause-dot:hover { r: 4; }
+.cause-dot.priority-likely { fill: var(--likely); }
+.cause-dot.priority-needs-evidence { fill: var(--needs-evidence); }
+.problem-text {
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 700;
+  fill: var(--bone-head);
+}
+
+/* ===== PRINT ===== */
+@media print {
+  .app-header, .sidebar, .diagram-toolbar, .info-panel { display: none !important; }
+  .app-layout { display: block; height: auto; }
+  .main-area { overflow: visible; }
+  .diagram-container { overflow: visible; }
+  body { background: #fff; }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 900px) {
+  .app-layout { flex-direction: column; height: auto; }
+  .sidebar { width: 100%; min-width: unset; max-height: 50vh; border-right: none; border-bottom: 1px solid var(--border); }
+  .info-content { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .app-header h1 span.full-title { display: none; }
+  .app-header h1 span.short-title { display: inline; }
+  .header-actions .btn span.btn-label { display: none; }
+}
+@media (min-width: 601px) {
+  .app-header h1 span.short-title { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="app-header">
+  <h1>
+    <span class="fish-icon">🐟</span>
+    <span class="full-title">Fishbone Diagram — Root Cause Analysis</span>
+    <span class="short-title">Fishbone RCA</span>
+  </h1>
+  <div class="header-actions">
+    <button class="btn btn-ghost btn-sm" onclick="toggleInfo()" title="How to use">
+      <span>ℹ️</span> <span class="btn-label">Guide</span>
+    </button>
+    <button class="btn btn-ghost btn-sm" onclick="loadExample()" title="Load sample scenario">
+      <span>📋</span> <span class="btn-label">Example</span>
+    </button>
+    <button class="btn btn-ghost btn-sm" onclick="resetAll()" title="Reset everything">
+      <span>🔄</span> <span class="btn-label">Reset</span>
+    </button>
+    <button class="btn btn-ghost btn-sm" onclick="undoAction()" title="Undo last action">
+      <span>↩️</span> <span class="btn-label">Undo</span>
+    </button>
+    <button class="btn btn-ghost btn-sm" id="themeToggle" onclick="toggleTheme()" title="Toggle dark/light mode" aria-label="Toggle dark/light mode">
+      <span id="themeIcon">🌙</span>
+    </button>
+  </div>
+</header>
+
+<!-- ===== INFO PANEL ===== -->
+<div class="info-panel" id="infoPanel">
+  <div class="info-content">
+    <div class="info-col">
+      <h3>What is a Fishbone Diagram?</h3>
+      <p>The Fishbone Diagram (also called an Ishikawa or Cause-and-Effect Diagram) is a visual tool used in root cause analysis. It helps teams systematically explore and organize potential causes of a problem.</p>
+      <br>
+      <h3>When to Use It</h3>
+      <ul>
+        <li>When investigating the root cause of a quality issue</li>
+        <li>During team brainstorming sessions</li>
+        <li>When you need to move beyond symptoms to find true causes</li>
+        <li>In Six Sigma Define and Analyze phases</li>
+      </ul>
+      <br>
+      <p><strong>Remember:</strong> Focus on <em>causes</em>, not symptoms. Ask "Why?" repeatedly to dig deeper.</p>
+    </div>
+    <div class="info-col">
+      <h3>How to Use This Tool</h3>
+      <ol class="info-steps">
+        <li>Enter your problem or effect statement</li>
+        <li>Review the default categories or customize them</li>
+        <li>Select a category and brainstorm possible causes</li>
+        <li>Add sub-causes to dig deeper</li>
+        <li>Add evidence or notes to support your analysis</li>
+        <li>Mark likely root causes with priority badges</li>
+        <li>Export or print your completed diagram</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAIN LAYOUT ===== -->
+<div class="app-layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <!-- Problem Statement -->
+    <div class="sidebar-section">
+      <h3>Problem / Effect</h3>
+      <div class="problem-input-wrap">
+        <input type="text" id="problemInput"
+          placeholder="e.g. Increase in customer service complaints"
+          aria-label="Problem statement"
+          oninput="updateProblem(this.value)">
+      </div>
+    </div>
+
+    <!-- Categories -->
+    <div class="sidebar-section">
+      <h3>Categories</h3>
+      <div class="category-list" id="categoryList"></div>
+      <div style="margin-top: 0.5rem;">
+        <button class="btn btn-sm" onclick="addCategory()">+ Add Category</button>
+      </div>
+    </div>
+
+    <!-- Causes for selected category -->
+    <div class="sidebar-section">
+      <h3 id="causesTitle">Causes</h3>
+      <div class="causes-panel" id="causesPanel">
+        <div class="causes-panel-empty" id="causesEmpty">
+          Select a category to add causes
+        </div>
+      </div>
+      <div class="add-cause-wrap" id="addCauseWrap" style="display:none;">
+        <input type="text" id="newCauseInput" placeholder="Add a cause…" aria-label="New cause"
+          onkeydown="if(event.key==='Enter')addCause()">
+        <button class="btn btn-primary btn-sm" onclick="addCause()">Add</button>
+      </div>
+    </div>
+
+    <!-- Learning Prompts -->
+    <div class="sidebar-section">
+      <h3>Learning Prompts</h3>
+      <div class="learning-prompts" id="learningPrompts"></div>
+    </div>
+  </aside>
+
+  <!-- MAIN DIAGRAM AREA -->
+  <div class="main-area">
+    <div class="diagram-toolbar">
+      <button class="btn btn-sm" onclick="zoomIn()" title="Zoom in">🔍+</button>
+      <button class="btn btn-sm" onclick="zoomOut()" title="Zoom out">🔍−</button>
+      <button class="btn btn-sm" onclick="zoomReset()" title="Fit to view">⊞ Fit</button>
+      <span class="spacer"></span>
+      <button class="btn btn-sm" onclick="exportPNG()" title="Export as PNG">📸 PNG</button>
+      <button class="btn btn-sm" onclick="exportJSON()" title="Save as JSON">💾 Save</button>
+      <button class="btn btn-sm" onclick="importJSON()" title="Load from JSON">📂 Load</button>
+      <button class="btn btn-sm" onclick="window.print()" title="Print">🖨️ Print</button>
+    </div>
+    <div class="diagram-container" id="diagramContainer">
+      <svg id="fishboneSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL ===== -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <h2 id="modalTitle">Modal</h2>
+      <button class="btn btn-icon btn-ghost" onclick="closeModal()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<!-- Hidden file input -->
+<input type="file" id="jsonFileInput" accept=".json" style="display:none" onchange="handleJSONLoad(event)">
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ===== APPLICATION STATE =====
+const CATEGORY_COLORS = [
+  '#e74c3c', '#3498db', '#9b59b6', '#1abc9c', '#f39c12', '#e67e22',
+  '#2ecc71', '#e84393', '#00b894', '#6c5ce7', '#fd79a8', '#636e72'
+];
+
+const DEFAULT_CATEGORIES = [
+  { id: uid(), name: 'People', color: CATEGORY_COLORS[0], causes: [] },
+  { id: uid(), name: 'Process', color: CATEGORY_COLORS[1], causes: [] },
+  { id: uid(), name: 'Policy', color: CATEGORY_COLORS[2], causes: [] },
+  { id: uid(), name: 'Technology', color: CATEGORY_COLORS[3], causes: [] },
+  { id: uid(), name: 'Environment', color: CATEGORY_COLORS[4], causes: [] },
+  { id: uid(), name: 'Materials', color: CATEGORY_COLORS[5], causes: [] },
+];
+
+const LEARNING_PROMPTS = [
+  { cat: 'People', text: 'Are there people-related skill, training, or workload factors?' },
+  { cat: 'Process', text: 'What about the process may be causing this issue?' },
+  { cat: 'Policy', text: 'Are policies or procedures unclear or outdated?' },
+  { cat: 'Technology', text: 'Are tools, systems, or technology contributing?' },
+  { cat: 'Environment', text: 'Are environmental conditions affecting performance?' },
+  { cat: null, text: 'What evidence supports this possible cause?' },
+  { cat: null, text: 'Have you asked "Why?" at least five times to dig deeper?' },
+];
+
+let state = {
+  problem: '',
+  categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
+  selectedCategoryId: null,
+};
+
+let undoStack = [];
+let zoomLevel = 1;
+const MAX_UNDO = 30;
+
+// ===== UTILITIES =====
+function uid() { return Math.random().toString(36).slice(2, 10); }
+
+function saveState() {
+  try { localStorage.setItem('fishbone_state', JSON.stringify(state)); } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem('fishbone_state');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.categories) {
+        state = parsed;
+        return true;
+      }
+    }
+  } catch(e) {}
+  return false;
+}
+
+function pushUndo() {
+  undoStack.push(JSON.stringify(state));
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+}
+
+function undoAction() {
+  if (undoStack.length === 0) { toast('Nothing to undo'); return; }
+  state = JSON.parse(undoStack.pop());
+  render();
+  saveState();
+  toast('Undone');
+}
+
+function toast(msg, duration = 2500) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, duration);
+}
+
+function getSelectedCategory() {
+  return state.categories.find(c => c.id === state.selectedCategoryId) || null;
+}
+
+// ===== THEME =====
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  document.getElementById('themeIcon').textContent = isDark ? '🌙' : '☀️';
+  try { localStorage.setItem('fishbone_theme', isDark ? 'light' : 'dark'); } catch(e) {}
+  renderDiagram();
+}
+
+function loadTheme() {
+  try {
+    const t = localStorage.getItem('fishbone_theme');
+    if (t) {
+      document.documentElement.setAttribute('data-theme', t);
+      document.getElementById('themeIcon').textContent = t === 'dark' ? '☀️' : '🌙';
+    }
+  } catch(e) {}
+}
+
+// ===== INFO PANEL =====
+function toggleInfo() {
+  document.getElementById('infoPanel').classList.toggle('open');
+}
+
+// ===== PROBLEM =====
+function updateProblem(val) {
+  pushUndo();
+  state.problem = val;
+  saveState();
+  renderDiagram();
+}
+
+// ===== CATEGORIES =====
+function renderCategories() {
+  const list = document.getElementById('categoryList');
+  list.innerHTML = '';
+  state.categories.forEach(cat => {
+    const div = document.createElement('div');
+    div.className = 'category-item' + (cat.id === state.selectedCategoryId ? ' active' : '');
+    div.setAttribute('role', 'button');
+    div.setAttribute('tabindex', '0');
+    div.setAttribute('aria-label', `${cat.name} category, ${cat.causes.length} causes`);
+    div.onclick = (e) => {
+      if (e.target.tagName !== 'BUTTON') selectCategory(cat.id);
+    };
+    div.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectCategory(cat.id); } };
+
+    const dot = document.createElement('span');
+    dot.className = 'category-color';
+    dot.style.background = cat.color;
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'category-name';
+    nameSpan.textContent = cat.name;
+    nameSpan.title = 'Double-click to rename';
+    nameSpan.ondblclick = (e) => {
+      e.stopPropagation();
+      // Replace span with input for editing
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'category-name';
+      input.value = cat.name;
+      input.setAttribute('aria-label', `Rename ${cat.name} category`);
+      input.style.background = 'var(--surface)';
+      input.style.padding = '0.1rem 0.3rem';
+      input.style.borderRadius = '3px';
+      input.style.border = '1px solid var(--accent)';
+      nameSpan.replaceWith(input);
+      input.focus();
+      input.select();
+      const finish = () => {
+        pushUndo();
+        cat.name = input.value || cat.name;
+        saveState();
+        render();
+      };
+      input.onblur = finish;
+      input.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); finish(); } if (ev.key === 'Escape') { input.value = cat.name; finish(); } };
+    };
+
+    const count = document.createElement('span');
+    count.className = 'category-count';
+    count.textContent = cat.causes.length;
+
+    const del = document.createElement('button');
+    del.className = 'category-delete';
+    del.textContent = '×';
+    del.title = `Delete ${cat.name} category`;
+    del.setAttribute('aria-label', `Delete ${cat.name} category`);
+    del.onclick = (e) => { e.stopPropagation(); deleteCategory(cat.id); };
+
+    div.append(dot, nameSpan, count, del);
+    list.appendChild(div);
+  });
+}
+
+function selectCategory(id) {
+  state.selectedCategoryId = id;
+  render();
+}
+
+function addCategory() {
+  pushUndo();
+  const colorIdx = state.categories.length % CATEGORY_COLORS.length;
+  state.categories.push({
+    id: uid(),
+    name: 'New Category',
+    color: CATEGORY_COLORS[colorIdx],
+    causes: []
+  });
+  saveState();
+  render();
+}
+
+function deleteCategory(id) {
+  if (state.categories.length <= 1) { toast('Need at least one category'); return; }
+  pushUndo();
+  state.categories = state.categories.filter(c => c.id !== id);
+  if (state.selectedCategoryId === id) state.selectedCategoryId = null;
+  saveState();
+  render();
+}
+
+// ===== CAUSES =====
+function renderCauses() {
+  const panel = document.getElementById('causesPanel');
+  const empty = document.getElementById('causesEmpty');
+  const wrap = document.getElementById('addCauseWrap');
+  const title = document.getElementById('causesTitle');
+  const cat = getSelectedCategory();
+
+  if (!cat) {
+    panel.innerHTML = '';
+    panel.appendChild(empty);
+    empty.style.display = 'block';
+    wrap.style.display = 'none';
+    title.textContent = 'Causes';
+    return;
+  }
+
+  empty.style.display = 'none';
+  wrap.style.display = 'flex';
+  title.textContent = `Causes — ${cat.name}`;
+  panel.innerHTML = '';
+
+  cat.causes.forEach((cause, idx) => {
+    const card = document.createElement('div');
+    card.className = 'cause-card';
+    card.innerHTML = buildCauseHTML(cause, cat.id);
+    panel.appendChild(card);
+  });
+
+  if (cat.causes.length === 0) {
+    const hint = document.createElement('div');
+    hint.className = 'causes-panel-empty';
+    hint.textContent = 'No causes yet. Add one below!';
+    panel.appendChild(hint);
+  }
+}
+
+function buildCauseHTML(cause, catId) {
+  const priorityClass = cause.priority ? `priority-${cause.priority}` : '';
+  const badgeHTML = cause.priority
+    ? `<span class="badge badge-${cause.priority}">${formatPriority(cause.priority)}</span>`
+    : '';
+
+  let subHTML = '';
+  if (cause.subCauses && cause.subCauses.length > 0) {
+    subHTML = '<div class="sub-causes">';
+    cause.subCauses.forEach(sc => {
+      subHTML += `<div class="sub-cause-item">
+        <span style="color:var(--text-muted);font-size:0.7rem;">└</span>
+        <input type="text" class="sub-cause-text" value="${escHTML(sc.text)}"
+          onchange="updateSubCause('${catId}','${cause.id}','${sc.id}',this.value)"
+          aria-label="Sub-cause">
+        <button class="sub-cause-delete" onclick="deleteSubCause('${catId}','${cause.id}','${sc.id}')" title="Delete">×</button>
+      </div>`;
+    });
+    subHTML += '</div>';
+  }
+
+  const selectorId = `badge-sel-${cause.id}`;
+  return `
+    <div class="cause-header">
+      <input type="text" class="cause-text ${priorityClass}" value="${escHTML(cause.text)}"
+        onchange="updateCauseText('${catId}','${cause.id}',this.value)"
+        aria-label="Cause description">
+      <div class="cause-actions">
+        <button onclick="toggleBadgeSelector('${selectorId}')" title="Change priority" aria-label="Change priority for ${escHTML(cause.text)}">🏷️</button>
+        <button onclick="deleteCause('${catId}','${cause.id}')" title="Delete cause" aria-label="Delete cause: ${escHTML(cause.text)}">🗑️</button>
+      </div>
+    </div>
+    ${badgeHTML}
+    <div class="badge-selector" id="${selectorId}">
+      <span class="badge badge-possible" onclick="setPriority('${catId}','${cause.id}','possible')" role="button" tabindex="0">Possible</span>
+      <span class="badge badge-likely" onclick="setPriority('${catId}','${cause.id}','likely')" role="button" tabindex="0">Likely Root Cause</span>
+      <span class="badge badge-needs-evidence" onclick="setPriority('${catId}','${cause.id}','needs-evidence')" role="button" tabindex="0">Needs Evidence</span>
+    </div>
+    ${subHTML}
+    <button class="add-sub-cause" onclick="addSubCause('${catId}','${cause.id}')">+ Add sub-cause</button>
+    <button class="cause-notes-toggle" onclick="toggleNotes(this, '${catId}','${cause.id}')">
+      ${cause.notes ? '📝 Edit notes' : '📝 Add notes'}
+    </button>
+    <div class="cause-notes" style="display:${cause.showNotes ? 'block' : 'none'}">
+      <textarea placeholder="Add evidence, observations, or data points…"
+        onchange="updateCauseNotes('${catId}','${cause.id}',this.value)"
+        aria-label="Cause notes">${escHTML(cause.notes || '')}</textarea>
+    </div>
+  `;
+}
+
+function formatPriority(p) {
+  if (p === 'likely') return '🔴 Likely Root Cause';
+  if (p === 'possible') return '🟡 Possible Cause';
+  if (p === 'needs-evidence') return '🔵 Needs Evidence';
+  return '';
+}
+
+function escHTML(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function addCause() {
+  const input = document.getElementById('newCauseInput');
+  const text = input.value.trim();
+  if (!text) return;
+  const cat = getSelectedCategory();
+  if (!cat) return;
+  pushUndo();
+  cat.causes.push({ id: uid(), text, priority: null, notes: '', showNotes: false, subCauses: [] });
+  input.value = '';
+  saveState();
+  render();
+}
+
+function updateCauseText(catId, causeId, val) {
+  pushUndo();
+  const cat = state.categories.find(c => c.id === catId);
+  const cause = cat?.causes.find(c => c.id === causeId);
+  if (cause) { cause.text = val; saveState(); renderDiagram(); }
+}
+
+function deleteCause(catId, causeId) {
+  pushUndo();
+  const cat = state.categories.find(c => c.id === catId);
+  if (cat) { cat.causes = cat.causes.filter(c => c.id !== causeId); saveState(); render(); }
+}
+
+function setPriority(catId, causeId, priority) {
+  pushUndo();
+  const cat = state.categories.find(c => c.id === catId);
+  const cause = cat?.causes.find(c => c.id === causeId);
+  if (cause) {
+    cause.priority = cause.priority === priority ? null : priority;
+    saveState();
+    render();
+  }
+}
+
+function toggleBadgeSelector(selectorId) {
+  const el = document.getElementById(selectorId);
+  if (el) el.classList.toggle('open');
+}
+
+function cyclePriority(catId, causeId) {
+  const cat = state.categories.find(c => c.id === catId);
+  const cause = cat?.causes.find(c => c.id === causeId);
+  if (!cause) return;
+  const cycle = [null, 'possible', 'likely', 'needs-evidence'];
+  const idx = cycle.indexOf(cause.priority);
+  setPriority(catId, causeId, cycle[(idx + 1) % cycle.length] || 'possible');
+}
+
+function updateCauseNotes(catId, causeId, val) {
+  const cat = state.categories.find(c => c.id === catId);
+  const cause = cat?.causes.find(c => c.id === causeId);
+  if (cause) { cause.notes = val; saveState(); }
+}
+
+function toggleNotes(btn, catId, causeId) {
+  const cat = state.categories.find(c => c.id === catId);
+  const cause = cat?.causes.find(c => c.id === causeId);
+  if (cause) {
+    cause.showNotes = !cause.showNotes;
+    saveState();
+    renderCauses();
+  }
+}
+
+function addSubCause(catId, causeId) {
+  pushUndo();
+  const cat = state.categories.find(c => c.id === catId);
+  const cause = cat?.causes.find(c => c.id === causeId);
+  if (cause) {
+    if (!cause.subCauses) cause.subCauses = [];
+    cause.subCauses.push({ id: uid(), text: 'Sub-cause' });
+    saveState();
+    render();
+  }
+}
+
+function updateSubCause(catId, causeId, subId, val) {
+  pushUndo();
+  const cat = state.categories.find(c => c.id === catId);
+  const cause = cat?.causes.find(c => c.id === causeId);
+  const sc = cause?.subCauses?.find(s => s.id === subId);
+  if (sc) { sc.text = val; saveState(); renderDiagram(); }
+}
+
+function deleteSubCause(catId, causeId, subId) {
+  pushUndo();
+  const cat = state.categories.find(c => c.id === catId);
+  const cause = cat?.causes.find(c => c.id === causeId);
+  if (cause) { cause.subCauses = cause.subCauses.filter(s => s.id !== subId); saveState(); render(); }
+}
+
+// ===== LEARNING PROMPTS =====
+function renderLearningPrompts() {
+  const el = document.getElementById('learningPrompts');
+  el.innerHTML = '';
+  LEARNING_PROMPTS.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'learning-prompt';
+    div.textContent = p.text;
+    if (p.cat) {
+      div.setAttribute('role', 'button');
+      div.setAttribute('tabindex', '0');
+      div.setAttribute('aria-label', `${p.text} — click to select ${p.cat} category`);
+      const handler = () => {
+        const cat = state.categories.find(c => c.name === p.cat);
+        if (cat) selectCategory(cat.id);
+      };
+      div.onclick = handler;
+      div.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); } };
+      div.style.cursor = 'pointer';
+      div.title = `Click to select ${p.cat} category`;
+    }
+    el.appendChild(div);
+  });
+}
+
+// ===== FISHBONE DIAGRAM RENDERING =====
+function renderDiagram() {
+  const svg = document.getElementById('fishboneSvg');
+  const container = document.getElementById('diagramContainer');
+
+  const cats = state.categories;
+  const numCats = cats.length;
+
+  // Calculate dimensions based on content — account for sub-causes needing extra space
+  const maxCausesWithSubs = Math.max(3, ...cats.map(c =>
+    c.causes.reduce((sum, cause) => sum + 1 + (cause.subCauses ? cause.subCauses.length : 0), 0)
+  ));
+  const width = Math.max(1200, 700 + numCats * 120);
+  const height = Math.max(600, 280 + maxCausesWithSubs * 55);
+
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  svg.setAttribute('width', width * zoomLevel);
+  svg.setAttribute('height', height * zoomLevel);
+
+  const cx = height / 2; // vertical center
+  const spineLeft = 100;
+  const spineRight = width - 180;
+  const spineLen = spineRight - spineLeft;
+
+  let svgContent = '';
+
+  // Background grid (subtle)
+  svgContent += `<defs>
+    <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="var(--border)" stroke-width="0.3" opacity="0.5"/>
+    </pattern>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#grid)" opacity="0.4"/>`;
+
+  // Fish tail
+  const tailX = spineLeft;
+  svgContent += `<path class="fish-tail-shape" d="M${tailX},${cx} L${tailX - 40},${cx - 45} L${tailX - 12},${cx} L${tailX - 40},${cx + 45} Z"/>`;
+  svgContent += `<path class="fish-bone" d="M${tailX},${cx} L${tailX - 40},${cx - 45} M${tailX},${cx} L${tailX - 40},${cx + 45}" opacity="0.5"/>`;
+
+  // Main spine
+  svgContent += `<line class="fish-spine" x1="${spineLeft}" y1="${cx}" x2="${spineRight}" y2="${cx}"/>`;
+
+  // Fish head
+  const headX = spineRight;
+  const headW = 90;
+  const headH = 55;
+  svgContent += `<path class="fish-head-shape" d="M${headX},${cx} L${headX + headW},${cx - 5} Q${headX + headW + 15},${cx} ${headX + headW},${cx + 5} Z"/>`;
+  svgContent += `<path class="fish-head-outline" d="M${headX},${cx - headH / 2} Q${headX + headW},${cx - headH / 2} ${headX + headW},${cx} Q${headX + headW},${cx + headH / 2} ${headX},${cx + headH / 2}"/>`;
+  // Eye
+  svgContent += `<circle cx="${headX + headW * 0.6}" cy="${cx - 8}" r="4" fill="var(--bone-head)" opacity="0.4"/>`;
+  svgContent += `<circle cx="${headX + headW * 0.6}" cy="${cx - 8}" r="2" fill="var(--bone-head)"/>`;
+
+  // Problem text below fish head — wrap long text into two lines
+  const problemText = state.problem || 'Enter your problem statement';
+  const maxLineLen = 28;
+  if (problemText.length <= maxLineLen) {
+    svgContent += `<text class="problem-text" x="${headX + headW / 2}" y="${cx + headH / 2 + 22}" text-anchor="middle">${escSVG(problemText)}</text>`;
+  } else {
+    // Split into two lines at a word boundary
+    let splitIdx = problemText.lastIndexOf(' ', maxLineLen);
+    if (splitIdx < 10) splitIdx = maxLineLen;
+    const line1 = problemText.slice(0, splitIdx);
+    const line2 = problemText.slice(splitIdx + 1);
+    const truncLine2 = line2.length > maxLineLen ? line2.slice(0, maxLineLen - 1) + '…' : line2;
+    svgContent += `<text class="problem-text" x="${headX + headW / 2}" y="${cx + headH / 2 + 18}" text-anchor="middle">
+      <tspan x="${headX + headW / 2}" dy="0">${escSVG(line1)}</tspan>
+      <tspan x="${headX + headW / 2}" dy="16">${escSVG(truncLine2)}</tspan>
+    </text>`;
+  }
+
+  // Render categories as bones
+  const spacing = spineLen / (numCats + 1);
+
+  cats.forEach((cat, i) => {
+    const boneX = spineLeft + spacing * (i + 1);
+    const isTop = i % 2 === 0;
+    const direction = isTop ? -1 : 1;
+    const boneLen = Math.min(height * 0.35, 200);
+    const angle = Math.PI / 3.2; // ~56 degrees — steeper for more vertical space
+    const endX = boneX - Math.cos(angle) * boneLen * 0.7;
+    const endY = cx + direction * Math.sin(angle) * boneLen;
+
+    // Category bone
+    svgContent += `<line class="fish-bone" x1="${boneX}" y1="${cx}" x2="${endX}" y2="${endY}" stroke="${cat.color}" stroke-opacity="0.6"/>`;
+
+    // Category label
+    const labelX = endX;
+    const labelY = endY + direction * 20;
+    svgContent += `<text class="cat-label" x="${labelX}" y="${labelY}" text-anchor="middle" fill="${cat.color}" data-cat="${cat.id}" onclick="selectCategory('${cat.id}')">${escSVG(cat.name)}</text>`;
+
+    // Causes along the bone — weighted spacing based on sub-cause count
+    const causes = cat.causes;
+    // Each cause gets a "weight" = 1 + number of sub-causes, so causes with more sub-causes get more bone space
+    const weights = causes.map(c => 1 + (c.subCauses ? c.subCauses.length * 0.7 : 0));
+    const totalWeight = weights.reduce((a, b) => a + b, 0) || 1;
+    // Compute cumulative t positions
+    const tPositions = [];
+    let cumWeight = 0;
+    for (let ci = 0; ci < causes.length; ci++) {
+      cumWeight += weights[ci];
+      // Center each cause within its weighted band
+      tPositions.push((cumWeight - weights[ci] / 2) / (totalWeight + 1));
+    }
+
+    causes.forEach((cause, ci) => {
+      const t = (tPositions[ci] * 0.85) + 0.08; // scale to 0.08..0.93 range (avoid very edges)
+      const cx2 = boneX + (endX - boneX) * t;
+      const cy2 = cx + (endY - cx) * t;
+
+      // Cause line (horizontal branch off the bone)
+      const causeLineLen = Math.min(100, 55 + cause.text.length * 2.5);
+      const causeEndX = cx2 - causeLineLen;
+
+      svgContent += `<line class="fish-sub-bone" x1="${cx2}" y1="${cy2}" x2="${causeEndX}" y2="${cy2}" stroke="${cat.color}" stroke-opacity="0.3"/>`;
+
+      // Cause dot
+      const dotClass = cause.priority ? `cause-dot priority-${cause.priority}` : 'cause-dot';
+      svgContent += `<circle class="${dotClass}" cx="${cx2}" cy="${cy2}" r="3" fill="${cat.color}" onclick="selectCategoryAndCause('${cat.id}','${cause.id}')"/>`;
+
+      // Cause label — position AWAY from spine (outer side of bone)
+      const labelClass = cause.priority ? `cause-label priority-${cause.priority}` : 'cause-label';
+      const causeText = cause.text.length > 28 ? cause.text.slice(0, 26) + '…' : cause.text;
+      // Priority prefix for accessibility (not color-only)
+      const priorityPrefix = cause.priority === 'likely' ? '● ' : cause.priority === 'needs-evidence' ? '○ ' : '';
+      const labelOffsetY = direction * 14; // away from spine
+      svgContent += `<text class="${labelClass}" x="${causeEndX - 4}" y="${cy2 + labelOffsetY}" text-anchor="end" onclick="selectCategoryAndCause('${cat.id}','${cause.id}')">${escSVG(priorityPrefix + causeText)}</text>`;
+
+      // Priority indicator ring
+      if (cause.priority === 'likely') {
+        svgContent += `<circle cx="${cx2}" cy="${cy2}" r="6" fill="none" stroke="${cat.color}" stroke-width="1.5" opacity="0.5"/>`;
+      }
+
+      // Sub-causes — branch TOWARD spine (inner side) so they don't collide with labels or adjacent causes
+      if (cause.subCauses && cause.subCauses.length > 0) {
+        cause.subCauses.forEach((sc, si) => {
+          const scAttachX = causeEndX + (cx2 - causeEndX) * 0.3;
+          const scOffsetY = -direction * (12 + si * 22); // toward spine, generous spacing
+          const scEndY = cy2 + scOffsetY;
+          svgContent += `<line class="fish-sub-bone" x1="${scAttachX}" y1="${cy2}" x2="${scAttachX}" y2="${scEndY}" stroke="${cat.color}" stroke-opacity="0.2"/>`;
+          svgContent += `<line class="fish-sub-bone" x1="${scAttachX}" y1="${scEndY}" x2="${scAttachX - 50}" y2="${scEndY}" stroke="${cat.color}" stroke-opacity="0.15"/>`;
+          const scText = sc.text.length > 22 ? sc.text.slice(0, 20) + '…' : sc.text;
+          svgContent += `<text class="sub-cause-label" x="${scAttachX - 54}" y="${scEndY + 3}" text-anchor="end">${escSVG(scText)}</text>`;
+        });
+      }
+    });
+  });
+
+  svg.innerHTML = svgContent;
+}
+
+function escSVG(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function selectCategoryAndCause(catId) {
+  selectCategory(catId);
+}
+
+// ===== ZOOM =====
+function zoomIn() { zoomLevel = Math.min(zoomLevel + 0.15, 3); renderDiagram(); }
+function zoomOut() { zoomLevel = Math.max(zoomLevel - 0.15, 0.3); renderDiagram(); }
+function zoomReset() { zoomLevel = 1; renderDiagram(); }
+
+// ===== EXPORT / IMPORT =====
+function exportPNG() {
+  const svg = document.getElementById('fishboneSvg');
+  const svgData = new XMLSerializer().serializeToString(svg);
+
+  // Get computed styles for the SVG
+  const styles = getComputedStyle(document.documentElement);
+  const bgColor = styles.getPropertyValue('--bg').trim() || '#f5f6fa';
+
+  // Replace CSS variables in SVG with actual values
+  let processedSvg = svgData;
+  const varMap = {};
+  const cssText = document.querySelector('style').textContent;
+  // Extract current theme vars
+  const el = document.documentElement;
+  const comp = getComputedStyle(el);
+  const varRegex = /var\(--([^)]+)\)/g;
+  let match;
+  while ((match = varRegex.exec(processedSvg)) !== null) {
+    const varName = match[1];
+    if (!varMap[varName]) {
+      varMap[varName] = comp.getPropertyValue('--' + varName).trim() || '#666';
+    }
+  }
+  for (const [k, v] of Object.entries(varMap)) {
+    processedSvg = processedSvg.replace(new RegExp(`var\\(--${k}\\)`, 'g'), v);
+  }
+
+  const canvas = document.createElement('canvas');
+  const vb = svg.getAttribute('viewBox').split(' ').map(Number);
+  const scale = 2;
+  canvas.width = vb[2] * scale;
+  canvas.height = vb[3] * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const img = new Image();
+  const blob = new Blob([processedSvg], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(url);
+    const a = document.createElement('a');
+    a.download = 'fishbone-diagram.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+    toast('PNG exported!');
+  };
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    toast('PNG export failed — try Print instead');
+  };
+  img.src = url;
+}
+
+function exportJSON() {
+  const data = JSON.stringify(state, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.download = 'fishbone-diagram.json';
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('JSON saved!');
+}
+
+function importJSON() {
+  document.getElementById('jsonFileInput').click();
+}
+
+function handleJSONLoad(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      pushUndo();
+      const data = JSON.parse(e.target.result);
+      if (data.categories) {
+        state = data;
+        document.getElementById('problemInput').value = state.problem || '';
+        saveState();
+        render();
+        toast('Diagram loaded!');
+      } else {
+        toast('Invalid file format');
+      }
+    } catch(err) {
+      toast('Error reading file');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ===== EXAMPLE SCENARIO =====
+function loadExample() {
+  pushUndo();
+  state = {
+    problem: 'Increase in customer service complaints',
+    categories: [
+      {
+        id: uid(), name: 'People', color: CATEGORY_COLORS[0],
+        causes: [
+          { id: uid(), text: 'Lack of training', priority: 'likely', notes: 'New hires receive only 2 days of training vs. industry standard of 5 days', showNotes: false, subCauses: [
+            { id: uid(), text: 'No onboarding program' },
+            { id: uid(), text: 'High turnover rate' }
+          ]},
+          { id: uid(), text: 'Staff overload', priority: 'possible', notes: 'Average handle time increased 40% after layoffs', showNotes: false, subCauses: [] },
+          { id: uid(), text: 'Low morale', priority: 'needs-evidence', notes: '', showNotes: false, subCauses: [] },
+        ]
+      },
+      {
+        id: uid(), name: 'Process', color: CATEGORY_COLORS[1],
+        causes: [
+          { id: uid(), text: 'Unclear SOPs', priority: 'likely', notes: 'Last SOP update was 18 months ago', showNotes: false, subCauses: [
+            { id: uid(), text: 'No version control' }
+          ]},
+          { id: uid(), text: 'Inefficient queuing', priority: 'possible', notes: '', showNotes: false, subCauses: [] },
+          { id: uid(), text: 'No escalation path', priority: null, notes: '', showNotes: false, subCauses: [] },
+        ]
+      },
+      {
+        id: uid(), name: 'Policy', color: CATEGORY_COLORS[2],
+        causes: [
+          { id: uid(), text: 'Rigid refund policy', priority: 'possible', notes: '', showNotes: false, subCauses: [] },
+          { id: uid(), text: 'Outdated SLA targets', priority: 'needs-evidence', notes: '', showNotes: false, subCauses: [] },
+        ]
+      },
+      {
+        id: uid(), name: 'Technology', color: CATEGORY_COLORS[3],
+        causes: [
+          { id: uid(), text: 'Legacy CRM system', priority: 'likely', notes: 'CRM crashes ~3 times per week, losing customer data', showNotes: false, subCauses: [
+            { id: uid(), text: 'Slow load times' },
+            { id: uid(), text: 'Missing integrations' }
+          ]},
+          { id: uid(), text: 'No self-service portal', priority: 'possible', notes: '', showNotes: false, subCauses: [] },
+        ]
+      },
+      {
+        id: uid(), name: 'Environment', color: CATEGORY_COLORS[4],
+        causes: [
+          { id: uid(), text: 'Noisy call center', priority: null, notes: '', showNotes: false, subCauses: [] },
+          { id: uid(), text: 'Remote work challenges', priority: 'possible', notes: '', showNotes: false, subCauses: [] },
+        ]
+      },
+      {
+        id: uid(), name: 'Materials', color: CATEGORY_COLORS[5],
+        causes: [
+          { id: uid(), text: 'Confusing forms', priority: 'possible', notes: '', showNotes: false, subCauses: [] },
+          { id: uid(), text: 'Unclear signage', priority: null, notes: '', showNotes: false, subCauses: [] },
+          { id: uid(), text: 'Missing documentation', priority: 'needs-evidence', notes: '', showNotes: false, subCauses: [] },
+        ]
+      },
+    ],
+    selectedCategoryId: null,
+  };
+  document.getElementById('problemInput').value = state.problem;
+  saveState();
+  render();
+  toast('Example scenario loaded!');
+}
+
+// ===== RESET =====
+function resetAll() {
+  if (!confirm('Reset everything? This will clear all your work.')) return;
+  pushUndo();
+  state = {
+    problem: '',
+    categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
+    selectedCategoryId: null,
+  };
+  document.getElementById('problemInput').value = '';
+  saveState();
+  render();
+  toast('Canvas reset');
+}
+
+// ===== MODAL =====
+function openModal(title, bodyHTML, footerHTML) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHTML;
+  document.getElementById('modalFooter').innerHTML = footerHTML;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+// ===== ONBOARDING =====
+function showOnboarding() {
+  const seen = localStorage.getItem('fishbone_onboarded');
+  if (seen) return;
+
+  const tip = document.createElement('div');
+  tip.className = 'onboarding-tip arrow-top';
+  tip.style.top = '60px';
+  tip.style.left = '20px';
+  tip.innerHTML = `
+    <strong>Welcome!</strong> Start by entering a problem statement, then select a category to brainstorm causes.
+    Click <strong>Example</strong> to see a completed diagram.
+    <div class="tip-actions">
+      <button class="btn btn-sm" onclick="this.closest('.onboarding-tip').remove(); localStorage.setItem('fishbone_onboarded','1')">Got it</button>
+      <button class="btn btn-sm" onclick="this.closest('.onboarding-tip').remove(); localStorage.setItem('fishbone_onboarded','1'); toggleInfo();">Show guide</button>
+    </div>
+  `;
+  document.body.appendChild(tip);
+}
+
+// ===== MAIN RENDER =====
+function render() {
+  renderCategories();
+  renderCauses();
+  renderDiagram();
+  renderLearningPrompts();
+}
+
+// ===== INIT =====
+function init() {
+  loadTheme();
+  const hadSaved = loadState();
+  if (hadSaved) {
+    document.getElementById('problemInput').value = state.problem || '';
+  }
+  render();
+  showOnboarding();
+
+  // Keyboard shortcut
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+      e.preventDefault();
+      undoAction();
+    }
+  });
+
+  // Mouse wheel zoom on diagram
+  document.getElementById('diagramContainer').addEventListener('wheel', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      if (e.deltaY < 0) zoomIn();
+      else zoomOut();
+    }
+  }, { passive: false });
+}
+
+init();
+</script>
+</body>
+</html>
